@@ -58,7 +58,6 @@ func main() {
 					cicsServiceID,
 				})
 				dashboard.Tiles = append(dashboard.Tiles, newTile)
-
 			}
 		} else {
 			dashboard.Tiles = append(dashboard.Tiles, Tile{
