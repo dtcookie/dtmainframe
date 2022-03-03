@@ -21,14 +21,18 @@ func main() {
 	}
 	demoLIveClient := NewClient(new(Config), demoLiveBaseURL, New(demoLIveApiToken))
 	cicsServices := CICSServices{}
-	err := cicsServices.Fetch(demoLIveClient)
+	faked, err := cicsServices.Fetch(demoLIveClient)
 	if err != nil {
 		panic(err)
 	}
 
 	client := demoLIveClient
-
-	serviceMetric := NewMainframeCICSTransactionRespTime()
+	var serviceMetric *ServiceMetric
+	if faked {
+		serviceMetric = NewIterationTransactionRespTime()
+	} else {
+		serviceMetric = NewMainframeCICSTransactionRespTime()
+	}
 	serviceMetricIID, err := CreateOrUpdateServiceMetric(client, serviceMetric)
 	if err != nil {
 		panic(err)
@@ -38,16 +42,16 @@ func main() {
 
 	for _, cicsService := range cicsServices {
 		cicsServiceID := cicsService.ID
-		dashboardName := cicsService.Name
+		dashboardName := "Mainframe - " + cicsService.Name
 		dashboard := GenDashboard(dashboardName, cicsServiceID, serviceMetricIID)
 		if len(cicsService.KeyRequests) > 0 {
-			idx := -1
+			idx := 0
 			for _, keyRequestID := range cicsService.KeyRequests {
 				idx++
 				newTile := NewServiceTile("Service or request", Bounds{
 					Top:    idx * 228,
 					Left:   266,
-					Width:  722,
+					Width:  684,
 					Height: 228,
 				}, []string{
 					keyRequestID,
@@ -56,6 +60,15 @@ func main() {
 				dashboard.Tiles = append(dashboard.Tiles, newTile)
 
 			}
+		} else {
+			dashboard.Tiles = append(dashboard.Tiles, Tile{
+				Name:       "NoKeyRequests",
+				TileType:   TileTypes.Markdown,
+				Configured: true,
+				Bounds:     Bounds{Top: 228, Left: 266, Width: 684, Height: 38},
+				TileFilter: TileFilter{},
+				Markdown:   strPtr("## There are currently no Key Requests configured"),
+			})
 		}
 
 		dashboardID, err := CreateOrUpdateDashboard(client, dashboard)
@@ -69,7 +82,7 @@ func main() {
 		}
 	}
 
-	mainDashboard := GenMainDashboard("Mainframe Main Dashboard", serviceMetricIID, subDashboards)
+	mainDashboard := GenMainDashboard("Mainframe Dashboard", serviceMetricIID, subDashboards)
 	_, err = CreateOrUpdateDashboard(client, mainDashboard)
 	if err != nil {
 		panic(err)

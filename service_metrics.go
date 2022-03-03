@@ -14,6 +14,54 @@ func strPtr(s string) *string {
 	return &s
 }
 
+func NewIterationTransactionRespTime() *ServiceMetric {
+	return &ServiceMetric{
+		TSMMetricKey: strPtr("calc:service.iterationtransactionresp.time"),
+		Name:         "Iteration Transaction Resp. Time",
+		Enabled:      true,
+		MetricDefinition: MetricDefinition{
+			Metric:           "RESPONSE_TIME",
+			RequestAttribute: nil,
+		},
+		Unit:            Units.MicroSecond,
+		UnitDisplayName: "",
+		EntityId:        nil,
+		ManagementZones: []string{},
+		Conditions: []Condition{
+			{
+				Attribute: "SERVICE_REQUEST_ATTRIBUTE",
+				ComparisonInfo: ComparisonInfo{
+					Type:             ComparisonInfoTypes.StringRequestAttribute,
+					Comparison:       Comparisons.Exists,
+					Value:            nil,
+					Values:           nil,
+					RequestAttribute: "TransactionCode",
+					Negate:           false,
+					CaseSensitive:    falsePtr(),
+				},
+			},
+			{
+				Attribute: "SERVICE_TYPE",
+				ComparisonInfo: ComparisonInfo{
+					Type:       ComparisonInfoTypes.ServiceType,
+					Comparison: Comparisons.Equals,
+					Value:      "CUSTOM_SERVICE",
+					Values:     nil,
+					Negate:     false,
+				},
+			},
+		},
+		DimensionDefinition: DimensionDefinition{
+			Name:            "CICS Txn Id",
+			Dimension:       "{RequestAttribute:TransactionCode}",
+			Placeholders:    []string{},
+			TopX:            10,
+			TopXDirection:   TopXDirections.Descending,
+			TopXAggregation: TopXAggregations.Sum,
+		},
+	}
+}
+
 func NewMainframeCICSTransactionRespTime() *ServiceMetric {
 	return &ServiceMetric{
 		TSMMetricKey: strPtr("calc:service.mainframecicstransactionresp.time"),
@@ -198,9 +246,11 @@ var TopXDirections = struct {
 type ComparisonInfoType string
 
 var ComparisonInfoTypes = struct {
-	String      ComparisonInfoType
-	ServiceType ComparisonInfoType
+	StringRequestAttribute ComparisonInfoType
+	String                 ComparisonInfoType
+	ServiceType            ComparisonInfoType
 }{
+	ComparisonInfoType("STRING_REQUEST_ATTRIBUTE"),
 	ComparisonInfoType("STRING"),
 	ComparisonInfoType("SERVICE_TYPE"),
 }
@@ -216,10 +266,11 @@ var Comparisons = struct {
 }
 
 type ComparisonInfo struct {
-	Type          ComparisonInfoType `json:"type"`
-	Comparison    Comparison         `json:"comparison"`
-	Value         interface{}        `json:"value"`
-	Values        []interface{}      `json:"values"`
-	Negate        bool               `json:"negate"`
-	CaseSensitive *bool              `json:"caseSensitive,omitempty"`
+	Type             ComparisonInfoType `json:"type"`
+	Comparison       Comparison         `json:"comparison"`
+	Value            interface{}        `json:"value"`
+	Values           []interface{}      `json:"values"`
+	Negate           bool               `json:"negate"`
+	RequestAttribute string             `json:"requestAttribute,omitempty"`
+	CaseSensitive    *bool              `json:"caseSensitive,omitempty"`
 }

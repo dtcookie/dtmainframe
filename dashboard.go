@@ -1,5 +1,7 @@
 package main
 
+import "strings"
+
 type SubDashboard struct {
 	ID        string
 	Name      string
@@ -10,7 +12,7 @@ func GenMainDashboard(name string, serviceMetricID string, subDashboards []SubDa
 	markdown := ""
 	if len(subDashboards) > 0 {
 		for _, subDashboard := range subDashboards {
-			markdown = markdown + "[" + subDashboard.Name + "](#dashboard;id=" + subDashboard.ID + ")\n\n"
+			markdown = markdown + "[" + strings.TrimPrefix(subDashboard.Name, "Mainframe - ") + "](#dashboard;id=" + subDashboard.ID + ")\n\n"
 		}
 	}
 	navTile := NewMarkdownTile(
@@ -26,10 +28,11 @@ func GenMainDashboard(name string, serviceMetricID string, subDashboards []SubDa
 	dashboard := &Dashboard{
 		DashboardMetadata: DashboardMetadata{
 			Name:            name,
-			Shared:          false,
-			Owner:           "reinhard.pilz@dynatrace.com",
+			Shared:          true,
+			Owner:           "mf-dashboard-generator",
 			DashboardFilter: DashboardFilter{},
 			Tags:            []string{"generated"},
+			Preset:          true,
 			Popularity:      1,
 		},
 		Tiles: []Tile{
@@ -111,8 +114,8 @@ func GenMainDashboard(name string, serviceMetricID string, subDashboards []SubDa
 				},
 				QueriesSettings: &QueriesSettings{
 					Resolution:         "",
-					FoldTransformation: FoldTransformations.Total,
-					FoldAggregation:    FoldAggregations.Max,
+					FoldTransformation: &FoldTransformations.Total,
+					FoldAggregation:    &FoldAggregations.Max,
 				},
 			},
 			navTile,
@@ -145,10 +148,10 @@ func GenMainDashboard(name string, serviceMetricID string, subDashboards []SubDa
 func GenDashboard(name string, serviceID string, metricID string) *Dashboard {
 	return &Dashboard{
 		DashboardMetadata: DashboardMetadata{
-			// Name:            "New RP MF",
 			Name:            name,
-			Shared:          false,
-			Owner:           "reinhard.pilz@dynatrace.com",
+			Shared:          true,
+			Preset:          true,
+			Owner:           "mf-dashboard-generator",
 			DashboardFilter: DashboardFilter{},
 			Tags:            []string{"generated"},
 			Popularity:      1,
@@ -158,8 +161,296 @@ func GenDashboard(name string, serviceID string, metricID string) *Dashboard {
 				Top:    0,
 				Left:   0,
 				Width:  266,
-				Height: 684,
+				Height: 722,
 			}),
+			NewResponseTimeTile("Response Time", serviceID, Bounds{
+				Top:    0,
+				Left:   266,
+				Width:  228,
+				Height: 228,
+			}),
+			NewCPUTile("CPU Time", serviceID, Bounds{
+				Top:    0,
+				Left:   494,
+				Width:  228,
+				Height: 228,
+			}),
+			NewFailuresTile("Failure Rate", serviceID, Bounds{
+				Top:    0,
+				Left:   722,
+				Width:  228,
+				Height: 228,
+			}),
+		},
+	}
+}
+
+func NewCPUTile(name string, serviceID string, bounds Bounds) Tile {
+	return Tile{
+		Name:       name,
+		TileType:   TileTypes.DataExplorer,
+		Configured: true,
+		Bounds:     bounds,
+		TileFilter: TileFilter{},
+		CustomName: name,
+		Queries: Queries{
+			Query{
+				ID:               "A",
+				Metric:           "builtin:service.cpu.perRequest",
+				SpaceAggregation: SpaceAggregations.Avg,
+				TimeAggregation:  TimeAggregations.Default,
+				SplitBy:          []string{},
+				SortBy:           "DESC",
+				FilterBy: Filter{
+					Operator: FilterOperators.And,
+					NestedFilters: Filters{
+						Filter{
+							Filter:        "dt.entity.service",
+							FilterType:    FilterTypes.ID,
+							Operator:      FilterOperators.Or,
+							NestedFilters: Filters{},
+							Criteria: Criteria{
+								Criterium{
+									Value:     serviceID,
+									Evaluator: "IN",
+								},
+							},
+						},
+					},
+				},
+				Limit:   100,
+				Enabled: true,
+			},
+		},
+		VisualConfig: &VisualConfig{
+			Type:   VisualConfigTypes.SingleValue,
+			Global: Global{HideLegend: false},
+			Rules: VisualConfigRules{
+				VisualConfigRule{
+					Matcher:        "A",
+					Properties:     Properties{Color: Colors.Default},
+					SeriesOverride: []string{},
+				},
+			},
+			Axes: Axes{
+				XAxis: XAxis{Visible: true},
+				YAxes: []string{},
+			},
+			HeatmapSettings: HeatmapSettings{},
+			SingleValueSettings: &SingleValueSettings{
+				ShowTrend:                true,
+				ShowSparkLine:            true,
+				LinkTileColorToThreshold: true,
+			},
+			Thresholds: []Threshold{
+				{
+					AxisTarget: AxisTargets.Left,
+					ColumnID:   "Response time",
+					Rules: []ThresholdRule{
+						{
+							Color: "#7dc540",
+						},
+						{
+							Color: "#f5d30f",
+						},
+						{
+							Color: "#dc172a",
+						},
+					},
+					QueryID: "",
+					Visible: false,
+				},
+			},
+			TableSettings: TableSettings{
+				SsThresholdBackgroundAppliedToCell: false,
+			},
+			GraphChartSettings: GraphChartSettings{
+				ConnectNulls: false,
+			},
+			HoneycombSettings: HoneycombSettings{},
+		},
+		QueriesSettings: &QueriesSettings{
+			Resolution: "",
+		},
+	}
+}
+
+func NewResponseTimeTile(name string, serviceID string, bounds Bounds) Tile {
+	return Tile{
+		Name:       name,
+		TileType:   TileTypes.DataExplorer,
+		Configured: true,
+		Bounds:     bounds,
+		TileFilter: TileFilter{},
+		CustomName: name,
+		Queries: Queries{
+			Query{
+				ID:               "A",
+				Metric:           "builtin:service.response.time",
+				SpaceAggregation: SpaceAggregations.Avg,
+				TimeAggregation:  TimeAggregations.Default,
+				SplitBy:          []string{},
+				SortBy:           "DESC",
+				FilterBy: Filter{
+					Operator: FilterOperators.And,
+					NestedFilters: Filters{
+						Filter{
+							Filter:        "dt.entity.service",
+							FilterType:    FilterTypes.ID,
+							Operator:      FilterOperators.Or,
+							NestedFilters: Filters{},
+							Criteria: Criteria{
+								Criterium{
+									Value:     serviceID,
+									Evaluator: "IN",
+								},
+							},
+						},
+					},
+				},
+				Limit:   100,
+				Enabled: true,
+			},
+		},
+		VisualConfig: &VisualConfig{
+			Type:   VisualConfigTypes.SingleValue,
+			Global: Global{HideLegend: false},
+			Rules: VisualConfigRules{
+				VisualConfigRule{
+					Matcher:        "A",
+					Properties:     Properties{Color: Colors.Default},
+					SeriesOverride: []string{},
+				},
+			},
+			Axes: Axes{
+				XAxis: XAxis{Visible: true},
+				YAxes: []string{},
+			},
+			HeatmapSettings: HeatmapSettings{},
+			SingleValueSettings: &SingleValueSettings{
+				ShowTrend:                true,
+				ShowSparkLine:            true,
+				LinkTileColorToThreshold: true,
+			},
+			Thresholds: []Threshold{
+				{
+					AxisTarget: AxisTargets.Left,
+					ColumnID:   "Response time",
+					Rules: []ThresholdRule{
+						{
+							Color: "#7dc540",
+						},
+						{
+							Color: "#f5d30f",
+						},
+						{
+							Color: "#dc172a",
+						},
+					},
+					QueryID: "",
+					Visible: false,
+				},
+			},
+			TableSettings: TableSettings{
+				SsThresholdBackgroundAppliedToCell: false,
+			},
+			GraphChartSettings: GraphChartSettings{
+				ConnectNulls: false,
+			},
+			HoneycombSettings: HoneycombSettings{},
+		},
+		QueriesSettings: &QueriesSettings{
+			Resolution: "",
+		},
+	}
+}
+
+func NewFailuresTile(name string, serviceID string, bounds Bounds) Tile {
+	return Tile{
+		Name:       name,
+		TileType:   TileTypes.DataExplorer,
+		Configured: true,
+		Bounds:     bounds,
+		TileFilter: TileFilter{},
+		CustomName: name,
+		Queries: Queries{
+			Query{
+				ID:               "A",
+				Metric:           "builtin:service.errors.total.rate",
+				SpaceAggregation: SpaceAggregations.Avg,
+				TimeAggregation:  TimeAggregations.Default,
+				SplitBy:          []string{},
+				SortBy:           "DESC",
+				FilterBy: Filter{
+					Operator: FilterOperators.And,
+					NestedFilters: Filters{
+						Filter{
+							Filter:        "dt.entity.service",
+							FilterType:    FilterTypes.ID,
+							Operator:      FilterOperators.Or,
+							NestedFilters: Filters{},
+							Criteria: Criteria{
+								Criterium{
+									Value:     serviceID,
+									Evaluator: "IN",
+								},
+							},
+						},
+					},
+				},
+				Limit:   100,
+				Enabled: true,
+			},
+		},
+		VisualConfig: &VisualConfig{
+			Type:   VisualConfigTypes.SingleValue,
+			Global: Global{HideLegend: false},
+			Rules: VisualConfigRules{
+				VisualConfigRule{
+					Matcher:        "A",
+					Properties:     Properties{Color: Colors.Default},
+					SeriesOverride: []string{},
+				},
+			},
+			Axes: Axes{
+				XAxis: XAxis{Visible: true},
+				YAxes: []string{},
+			},
+			HeatmapSettings: HeatmapSettings{},
+			SingleValueSettings: &SingleValueSettings{
+				ShowTrend:                true,
+				ShowSparkLine:            true,
+				LinkTileColorToThreshold: true,
+			},
+			Thresholds: []Threshold{
+				{
+					AxisTarget: AxisTargets.Left,
+					ColumnID:   "Response time",
+					Rules: []ThresholdRule{
+						{
+							Color: "#7dc540",
+						},
+						{
+							Color: "#f5d30f",
+						},
+						{
+							Color: "#dc172a",
+						},
+					},
+					QueryID: "",
+					Visible: false,
+				},
+			},
+			TableSettings: TableSettings{
+				SsThresholdBackgroundAppliedToCell: false,
+			},
+			GraphChartSettings: GraphChartSettings{
+				ConnectNulls: false,
+			},
+			HoneycombSettings: HoneycombSettings{},
+		},
+		QueriesSettings: &QueriesSettings{
+			Resolution: "",
 		},
 	}
 }
@@ -268,8 +559,8 @@ func NewTopList(name string, serviceID string, metricID string, bounds Bounds) T
 		},
 		QueriesSettings: &QueriesSettings{
 			Resolution:         "",
-			FoldTransformation: FoldTransformations.Total,
-			FoldAggregation:    FoldAggregations.Max,
+			FoldTransformation: &FoldTransformations.Total,
+			FoldAggregation:    &FoldAggregations.Max,
 		},
 	}
 }
@@ -290,6 +581,7 @@ type DashboardMetadata struct {
 	Owner           string          `json:"owner"`
 	DashboardFilter DashboardFilter `json:"dashboardFilter"`
 	Popularity      int             `json:"popularity"`
+	Preset          bool            `json:"preset,omitempty"`
 	Tags            []string        `json:"tags"`
 }
 
@@ -332,9 +624,9 @@ type Tile struct {
 }
 
 type QueriesSettings struct {
-	Resolution         string             `json:"resolution"`
-	FoldTransformation FoldTransformation `json:"foldTransformation"`
-	FoldAggregation    FoldAggregation    `json:"foldAggregation"`
+	Resolution         string              `json:"resolution"`
+	FoldTransformation *FoldTransformation `json:"foldTransformation,omitempty"`
+	FoldAggregation    *FoldAggregation    `json:"foldAggregation,omitempty"`
 }
 
 type Global struct {
@@ -364,15 +656,22 @@ type HoneycombSettings struct {
 }
 
 type VisualConfig struct {
-	Type               VisualConfigType   `json:"type"`
-	Global             Global             `json:"global"`
-	Rules              VisualConfigRules  `json:"rules"`
-	Axes               Axes               `json:"axes"`
-	HeatmapSettings    HeatmapSettings    `json:"heatmapSettings"`
-	Thresholds         []Threshold        `json:"thresholds"`
-	TableSettings      TableSettings      `json:"tableSettings"`
-	GraphChartSettings GraphChartSettings `json:"graphChartSettings"`
-	HoneycombSettings  HoneycombSettings  `json:"honeycombSettings"`
+	Type                VisualConfigType     `json:"type"`
+	Global              Global               `json:"global"`
+	Rules               VisualConfigRules    `json:"rules"`
+	Axes                Axes                 `json:"axes"`
+	HeatmapSettings     HeatmapSettings      `json:"heatmapSettings"`
+	SingleValueSettings *SingleValueSettings `json:"singleValueSettings,omitempty"`
+	Thresholds          []Threshold          `json:"thresholds"`
+	TableSettings       TableSettings        `json:"tableSettings"`
+	GraphChartSettings  GraphChartSettings   `json:"graphChartSettings"`
+	HoneycombSettings   HoneycombSettings    `json:"honeycombSettings"`
+}
+
+type SingleValueSettings struct {
+	ShowTrend                bool `json:"showTrend"`
+	ShowSparkLine            bool `json:"showSparkLine"`
+	LinkTileColorToThreshold bool `json:"linkTileColorToThreshold"`
 }
 
 type Threshold struct {

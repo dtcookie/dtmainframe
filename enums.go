@@ -19,9 +19,11 @@ var Colors = struct {
 type VisualConfigType string
 
 var VisualConfigTypes = struct {
-	TopList VisualConfigType
+	TopList     VisualConfigType
+	SingleValue VisualConfigType
 }{
 	VisualConfigType("TOP_LIST"),
+	VisualConfigType("SINGLE_VALUE"),
 }
 
 type FoldAggregation string
