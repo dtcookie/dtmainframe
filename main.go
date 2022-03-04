@@ -6,6 +6,7 @@ import (
 )
 
 func main() {
+	fmt.Println("dtmainframe v2.0.0")
 	demoLiveBaseURL := os.Getenv("DT_URL")
 	if len(demoLiveBaseURL) == 0 {
 		fmt.Println("You need to set the environment variable 'DT_URL'.")
